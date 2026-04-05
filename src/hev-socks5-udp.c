@@ -26,6 +26,17 @@
 #define UDP_BUF_SIZE 1500
 
 static int
+socket_would_block (void)
+{
+#ifdef _WIN32
+    int err = WSAGetLastError ();
+    return err == WSAEWOULDBLOCK;
+#else
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+#endif
+}
+
+static int
 task_io_yielder (HevTaskYieldType type, void *data)
 {
     HevSocks5 *self = data;
@@ -35,7 +46,7 @@ task_io_yielder (HevTaskYieldType type, void *data)
         char buf;
 
         res = recv (self->fd, &buf, sizeof (buf), 0);
-        if ((res == 0) || ((res < 0) && (errno != EAGAIN))) {
+        if ((res == 0) || ((res < 0) && !socket_would_block ())) {
             hev_socks5_set_timeout (self, 0);
             return -1;
         }
@@ -402,15 +413,16 @@ hev_socks5_udp_fwd_b (HevSocks5UDP *self, int fd, struct mmsghdr *svec,
                                        task_io_yielder, self);
     if (res > 0) {
         HevSocks5UDPMsg dvec[res];
-        char saddr[res][19];
+        HevSocks5Addr saddr[res];
 
         for (i = 0; i < res; i++) {
             dvec[i].buf = svec[i].msg_hdr.msg_iov->iov_base;
             dvec[i].len = svec[i].msg_len;
-            dvec[i].addr = (HevSocks5Addr *)&saddr[i];
+            dvec[i].addr = &saddr[i];
             hev_socks5_addr_from_sockaddr6 (dvec[i].addr,
                                             svec[i].msg_hdr.msg_name);
         }
+
         res = hev_socks5_udp_sendmmsg (self, dvec, res);
     }
     if (res <= 0) {

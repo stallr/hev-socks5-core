@@ -11,6 +11,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#ifdef _WIN32
+#include <mstcpip.h>
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+#endif
+#endif
 
 #include <hev-task.h>
 #include <hev-task-io.h>
@@ -31,6 +37,22 @@ static int udp_timeout = 60000;
 static int task_stack_size = 8192;
 static int udp_recv_buffer_size = 512 * 1024;
 static int udp_copy_buffer_nums = 10;
+
+#ifdef _WIN32
+static void
+hev_socks5_disable_udp_connreset (int fd)
+{
+    DWORD bytes = 0;
+    BOOL disable = FALSE;
+
+    if (WSAIoctl ((SOCKET)(uintptr_t)fd, SIO_UDP_CONNRESET, &disable,
+                  sizeof (disable), NULL, 0, &bytes, NULL, NULL) ==
+        SOCKET_ERROR) {
+        LOG_W ("%p socks5 udp connreset ioctl fd=%d err=%d", hev_task_self (),
+               fd, WSAGetLastError ());
+    }
+}
+#endif
 
 int
 hev_socks5_task_io_yielder (HevTaskYieldType type, void *data)
@@ -79,6 +101,9 @@ hev_socks5_socket (int type)
     if (type == SOCK_DGRAM) {
         res = udp_recv_buffer_size;
         setsockopt (fd, SOL_SOCKET, SO_RCVBUF, &res, sizeof (res));
+#ifdef _WIN32
+        hev_socks5_disable_udp_connreset (fd);
+#endif
     }
 
     return fd;
