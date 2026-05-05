@@ -12,6 +12,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#ifdef _WIN32
+#include <io.h>
+#endif
 #include <unistd.h>
 #include <sys/uio.h>
 #include <sys/stat.h>
@@ -22,17 +25,45 @@
 static int fd = -1;
 static HevSocks5LoggerLevel req_level;
 
+static int
+hev_socks5_logger_open_null (void)
+{
+#ifdef _WIN32
+    return open ("NUL", O_WRONLY | O_APPEND);
+#else
+    return open ("/dev/null", O_WRONLY | O_APPEND);
+#endif
+}
+
 int
 hev_socks5_logger_init (HevSocks5LoggerLevel level, const char *path)
 {
     req_level = level;
 
-    if (0 == strcmp (path, "stdout"))
+    if (fd >= 0) {
+        close (fd);
+        fd = -1;
+    }
+
+    if ((!path) || (!path[0]))
+        path = "stderr";
+
+    if ((0 == strcmp (path, "none")) || (0 == strcmp (path, "off")) ||
+        (0 == strcmp (path, "null")))
+        fd = -1;
+    else if (0 == strcmp (path, "stdout"))
         fd = dup (1);
     else if (0 == strcmp (path, "stderr"))
         fd = dup (2);
     else
         fd = open (path, O_WRONLY | O_APPEND | O_CREAT, 0640);
+
+    if ((0 == strcmp (path, "none")) || (0 == strcmp (path, "off")) ||
+        (0 == strcmp (path, "null")))
+        return 0;
+
+    if (fd < 0)
+        fd = hev_socks5_logger_open_null ();
 
     if (fd < 0)
         return -1;
@@ -43,7 +74,10 @@ hev_socks5_logger_init (HevSocks5LoggerLevel level, const char *path)
 void
 hev_socks5_logger_fini (void)
 {
-    close (fd);
+    if (fd >= 0) {
+        close (fd);
+        fd = -1;
+    }
 }
 
 int
