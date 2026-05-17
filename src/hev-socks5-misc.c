@@ -70,7 +70,7 @@ hev_socks5_task_io_yielder (HevTaskYieldType type, void *data)
         int timeout = self->timeout;
         timeout = hev_task_sleep (timeout);
         if (timeout <= 0) {
-            LOG_I ("%p io timeout", self);
+            LOG_D ("%p io timeout after %dms", self, self->timeout);
             return -1;
         }
     }
