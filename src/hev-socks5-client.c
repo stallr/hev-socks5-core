@@ -7,6 +7,7 @@
  ============================================================================
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -427,8 +428,18 @@ hev_socks5_client_set_auth (HevSocks5Client *self, const char *user,
 {
     LOG_D ("%p socks5 client set auth", self);
 
-    self->auth.user = user;
-    self->auth.pass = pass;
+    if (!user || !pass) {
+        self->auth.user = NULL;
+        self->auth.pass = NULL;
+        self->auth.user_buf[0] = '\0';
+        self->auth.pass_buf[0] = '\0';
+        return;
+    }
+
+    snprintf (self->auth.user_buf, sizeof (self->auth.user_buf), "%s", user);
+    snprintf (self->auth.pass_buf, sizeof (self->auth.pass_buf), "%s", pass);
+    self->auth.user = self->auth.user_buf;
+    self->auth.pass = self->auth.pass_buf;
 }
 
 int

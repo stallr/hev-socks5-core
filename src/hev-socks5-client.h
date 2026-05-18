@@ -32,6 +32,8 @@ struct _HevSocks5Client
     {
         const char *user;
         const char *pass;
+        char user_buf[256];
+        char pass_buf[256];
     } auth;
 };
 
