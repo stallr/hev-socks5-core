@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #ifdef _WIN32
+#include <sys/socket.h>
 #include <mstcpip.h>
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
@@ -44,8 +45,15 @@ hev_socks5_disable_udp_connreset (int fd)
 {
     DWORD bytes = 0;
     BOOL disable = FALSE;
+    SOCKET socket = (SOCKET)hev_windows_socket_raw (fd);
 
-    if (WSAIoctl ((SOCKET)(uintptr_t)fd, SIO_UDP_CONNRESET, &disable,
+    if (socket == INVALID_SOCKET) {
+        LOG_W ("%p socks5 udp connreset ioctl fd=%d invalid managed socket",
+               hev_task_self (), fd);
+        return;
+    }
+
+    if (WSAIoctl (socket, SIO_UDP_CONNRESET, &disable,
                   sizeof (disable), NULL, 0, &bytes, NULL, NULL) ==
         SOCKET_ERROR) {
         LOG_W ("%p socks5 udp connreset ioctl fd=%d err=%d", hev_task_self (),
