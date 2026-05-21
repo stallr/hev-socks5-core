@@ -16,6 +16,21 @@
 
 #include "hev-socks5-client-tcp.h"
 
+static const char *
+hev_socks5_client_tcp_addr_kind (const HevSocks5Addr *addr)
+{
+    switch (addr->atype) {
+    case HEV_SOCKS5_ADDR_TYPE_IPV4:
+        return "ipv4";
+    case HEV_SOCKS5_ADDR_TYPE_IPV6:
+        return "ipv6";
+    case HEV_SOCKS5_ADDR_TYPE_NAME:
+        return "domain";
+    default:
+        return "unknown";
+    }
+}
+
 HevSocks5ClientTCP *
 hev_socks5_client_tcp_new_name (const char *name, int port)
 {
@@ -125,11 +140,18 @@ hev_socks5_client_tcp_construct (HevSocks5ClientTCP *self,
     memcpy (self->addr, addr, res);
 
     if (LOG_ON ()) {
-        const char *str;
-        char buf[272];
+#ifdef TOMATO_DEV_RAW_LOGS
+        char target[300];
 
-        str = hev_socks5_addr_into_str (self->addr, buf, sizeof (buf));
-        LOG_I ("%p socks5 client tcp -> %s", self, str);
+        if (hev_socks5_addr_into_str (self->addr, target, sizeof (target)))
+            LOG_I ("%p socks5 client tcp -> %s", self, target);
+        else
+            LOG_I ("%p socks5 client tcp -> kind=%s", self,
+                   hev_socks5_client_tcp_addr_kind (self->addr));
+#else
+        LOG_I ("%p socks5 client tcp -> kind=%s", self,
+               hev_socks5_client_tcp_addr_kind (self->addr));
+#endif
     }
 
     return 0;

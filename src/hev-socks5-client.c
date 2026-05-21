@@ -23,6 +23,51 @@
 
 #define task_io_yielder hev_socks5_task_io_yielder
 
+static const char *
+hev_socks5_client_host_kind (const char *addr)
+{
+    int has_colon = 0;
+    int maybe_ipv4 = 1;
+
+    if (!addr || !*addr)
+        return "unknown";
+
+    for (const unsigned char *p = (const unsigned char *)addr; *p; p++) {
+        if (*p == ':')
+            has_colon = 1;
+        if (!((*p >= '0' && *p <= '9') || *p == '.'))
+            maybe_ipv4 = 0;
+    }
+
+    if (has_colon)
+        return "ipv6";
+    if (maybe_ipv4)
+        return "ipv4";
+    return "domain";
+}
+
+static const char *
+hev_socks5_client_port_class (int port)
+{
+    switch (port) {
+    case 0:
+        return "none";
+    case 53:
+        return "dns";
+    case 80:
+    case 443:
+        return "web";
+    case 853:
+        return "dns_tls";
+    case 123:
+        return "ntp";
+    case 5223:
+        return "push";
+    default:
+        return (port > 0 && port <= 1023) ? "system" : "other";
+    }
+}
+
 static int
 hev_socks5_client_write_auth_methods (HevSocks5Client *self)
 {
@@ -272,7 +317,14 @@ hev_socks5_client_connect (HevSocks5Client *self, const char *addr, int port)
     int timeout;
     int fd, res;
 
-    LOG_D ("%p socks5 client connect [%s]:%d", self, addr, port);
+#ifdef TOMATO_DEV_RAW_LOGS
+    LOG_D ("%p socks5 client connect [%s]:%d", self,
+           addr && addr[0] ? addr : "<empty>", port);
+#else
+    LOG_D ("%p socks5 client connect kind=%s port=%s", self,
+           hev_socks5_client_host_kind (addr),
+           hev_socks5_client_port_class (port));
+#endif
 
     timeout = hev_socks5_get_connect_timeout ();
     hev_socks5_set_timeout (HEV_SOCKS5 (self), timeout);
@@ -281,7 +333,14 @@ hev_socks5_client_connect (HevSocks5Client *self, const char *addr, int port)
     addr_family = hev_socks5_get_addr_family (HEV_SOCKS5 (self));
     res = hev_socks5_name_into_sockaddr6 (addr, port, &saddr, &addr_family);
     if (res < 0) {
-        LOG_I ("%p socks5 client resolve [%s]:%d", self, addr, port);
+#ifdef TOMATO_DEV_RAW_LOGS
+        LOG_I ("%p socks5 client resolve [%s]:%d", self,
+               addr && addr[0] ? addr : "<empty>", port);
+#else
+        LOG_I ("%p socks5 client resolve kind=%s port=%s", self,
+               hev_socks5_client_host_kind (addr),
+               hev_socks5_client_port_class (port));
+#endif
         return -1;
     }
 
