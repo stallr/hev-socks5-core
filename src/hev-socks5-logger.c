@@ -30,8 +30,8 @@ static atomic_flag logger_lock = ATOMIC_FLAG_INIT;
 static void
 hev_socks5_logger_lock (void)
 {
-    while (atomic_flag_test_and_set_explicit (&logger_lock,
-                                              memory_order_acquire))
+    while (
+        atomic_flag_test_and_set_explicit (&logger_lock, memory_order_acquire))
         ;
 }
 
@@ -74,8 +74,10 @@ hev_socks5_logger_init (HevSocks5LoggerLevel level, const char *path)
         fd = -1;
     }
 
-    if ((!path) || (!path[0]))
-        path = "stderr";
+    if ((!path) || (!path[0])) {
+        hev_socks5_logger_unlock ();
+        return 0;
+    }
 
     if ((0 == strcmp (path, "none")) || (0 == strcmp (path, "off")) ||
         (0 == strcmp (path, "null")))
