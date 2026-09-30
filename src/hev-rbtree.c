@@ -354,7 +354,7 @@ _hev_rbtree_erase (HevRBTree *self, HevRBTreeNode *node)
     HevRBTreeNode *child = node->right;
     HevRBTreeNode *tmp = node->left;
     HevRBTreeNode *parent, *rebalance;
-    unsigned long pc;
+    uintptr_t pc;
 
     if (!tmp) {
         /*
