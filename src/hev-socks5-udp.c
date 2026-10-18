@@ -122,7 +122,7 @@ hev_socks5_udp_sendmmsg_tcp (HevSocks5UDP *self, HevSocks5UDPMsg *msgv,
     return num;
 }
 
-#if defined(__linux__) && defined(UDP_SEGMENT)
+#if defined(__linux__) && defined(UDP_SEGMENT) && !defined(ENABLE_LIBRARY)
 static int udp_gso_max_size = -1;
 
 static int
@@ -242,7 +242,7 @@ hev_socks5_udp_sendmmsg_udp (HevSocks5UDP *self, HevSocks5UDPMsg *msgv,
         mvec[i].msg_hdr.msg_iovlen = 3;
     }
 
-#if defined(__linux__) && defined(UDP_SEGMENT)
+#if defined(__linux__) && defined(UDP_SEGMENT) && !defined(ENABLE_LIBRARY)
     if (udp_gso_max_size < 0)
         udp_gso_max_size = hev_socks5_udp_gso_probe ();
 
