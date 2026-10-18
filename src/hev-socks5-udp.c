@@ -12,7 +12,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#ifdef __linux__
 #include <netinet/udp.h>
+#endif
 
 #include <hev-task.h>
 #include <hev-task-io.h>
@@ -26,6 +28,14 @@
 #include "hev-socks5-udp.h"
 
 #define UDP_BUF_SIZE 1500
+
+/* The Windows recvmsg adapter returns Winsock flags (and rejects
+ * WSAEMSGSIZE). A successful partial receive must also be discarded. */
+#ifdef _WIN32
+#define HEV_UDP_TRUNCATED MSG_PARTIAL
+#else
+#define HEV_UDP_TRUNCATED MSG_TRUNC
+#endif
 
 static int
 socket_would_block (void)
@@ -122,7 +132,7 @@ hev_socks5_udp_gso_probe (void)
     int fd, res;
 
     /* Kernels without UDP GSO would send the coalesced datagrams as one. */
-    fd = socket (AF_INET, SOCK_DGRAM, 0);
+    fd = hev_task_io_socket_socket (AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
         return 0;
     res = setsockopt (fd, SOL_UDP, UDP_SEGMENT, &size, sizeof (size));
@@ -400,7 +410,8 @@ hev_socks5_udp_recvmmsg_udp (HevSocks5UDP *self, HevSocks5UDPMsg *msgv,
         int doff;
 
         msgv[i].len = mvec[i].msg_len;
-        if ((msgv[i].len < 4) || (mvec[i].msg_hdr.msg_flags & MSG_TRUNC)) {
+        if ((msgv[i].len < 4) ||
+            (mvec[i].msg_hdr.msg_flags & HEV_UDP_TRUNCATED)) {
             msgv[i].addr = NULL;
             msgv[i].len = 0;
             continue;
